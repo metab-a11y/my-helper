@@ -46,14 +46,16 @@ export const stripeAccountOptions = (): Stripe.RequestOptions | undefined =>
 export async function createCheckoutSession({
   priceId,
   customerId,
-  userId,
+  customerEmail,
+  providerProfileId,
   successUrl,
   cancelUrl,
   mode = "subscription",
 }: {
   priceId: string;
   customerId?: string;
-  userId: string;
+  customerEmail?: string;
+  providerProfileId: string;
   successUrl: string;
   cancelUrl: string;
   mode?: "payment" | "subscription";
@@ -63,21 +65,23 @@ export async function createCheckoutSession({
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl,
     cancel_url: cancelUrl,
-    metadata: { userId },
+    metadata: { providerProfileId },
     ...(customerId
       ? { customer: customerId }
-      : { customer_creation: "always" }),
+      : customerEmail
+        ? { customer_email: customerEmail }
+        : { customer_creation: "always" }),
 
     // Subscription platform fee
     ...(mode === "subscription" && PLATFORM_FEE_PERCENT > 0
       ? {
           subscription_data: {
-            metadata: { userId },
+            metadata: { providerProfileId },
             application_fee_percent: PLATFORM_FEE_PERCENT,
           },
         }
       : mode === "subscription"
-      ? { subscription_data: { metadata: { userId } } }
+      ? { subscription_data: { metadata: { providerProfileId } } }
       : {}),
 
     // One-time payment platform fee — calculated after price lookup
@@ -85,6 +89,10 @@ export async function createCheckoutSession({
   };
 
   return stripe.checkout.sessions.create(params, stripeAccountOptions());
+}
+
+export async function retrieveCheckoutSession(sessionId: string) {
+  return stripe.checkout.sessions.retrieve(sessionId, stripeAccountOptions());
 }
 
 // ─── Billing portal ───────────────────────────────────────────────────────────

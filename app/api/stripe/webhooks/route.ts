@@ -1,5 +1,5 @@
 import { constructWebhookEvent } from "@/lib/stripe";
-import { createClient } from "@/lib/supabase/server";
+import { setProviderPaid } from "@/lib/my-helper/tools";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -32,32 +32,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  const supabase = await createClient();
-
   try {
     switch (event.type) {
       // ── New subscription or one-time purchase ─────────────────────────────
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
-        if (!userId) break;
-
-        // Store Stripe customer ID on profile for future portal/checkout calls
-        if (session.customer) {
-          await supabase
-            .from("profiles")
-            .update({ stripe_customer_id: session.customer as string })
-            .eq("id", userId);
-        }
-
-        // If subscription, the subscription.updated event will handle status
-        if (session.mode === "payment") {
-          await supabase.from("purchases").upsert({
-            user_id: userId,
-            stripe_customer_id: session.customer,
-            stripe_session_id: session.id,
-            amount_total: session.amount_total,
-            status: "paid",
+        const providerProfileId = session.metadata?.providerProfileId;
+        if (providerProfileId && session.payment_status === "paid") {
+          await setProviderPaid({
+            providerProfileId,
+            stripeSessionId: session.id,
+            actor: "Stripe webhook",
           });
         }
         break;
@@ -67,29 +52,20 @@ export async function POST(request: Request) {
       case "customer.subscription.updated":
       case "customer.subscription.created": {
         const sub = event.data.object as Stripe.Subscription;
-        const userId = sub.metadata?.userId;
-        if (!userId) break;
-
-        await supabase.from("subscriptions").upsert({
-          id: sub.id,
-          user_id: userId,
-          stripe_customer_id: sub.customer as string,
-          status: sub.status,
-          price_id: sub.items.data[0]?.price.id,
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
-          cancel_at_period_end: sub.cancel_at_period_end,
-          updated_at: new Date().toISOString(),
-        });
+        const providerProfileId = sub.metadata?.providerProfileId;
+        if (providerProfileId && ["active", "trialing"].includes(sub.status)) {
+          await setProviderPaid({
+            providerProfileId,
+            stripeSessionId: sub.latest_invoice?.toString(),
+            actor: "Stripe subscription",
+          });
+        }
         break;
       }
 
       // ── Subscription cancelled ────────────────────────────────────────────
       case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        await supabase
-          .from("subscriptions")
-          .update({ status: "canceled", updated_at: new Date().toISOString() })
-          .eq("id", sub.id);
+        // Subscription cancellation does not hide existing paid leads in v1.
         break;
       }
 
