@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "vibe-stack-supabase",
-  description: "Next.js + Supabase starter",
+  title: "my-helper",
+  description: "Find local service requests, create provider profiles, and unlock qualified leads.",
 };
 
 export default function RootLayout({
@@ -13,7 +13,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <header className="site-header">
+          <a className="brand" href="/">my-helper</a>
+          <nav>
+            <a href="/requests">Requests</a>
+            <a href="/providers">Providers</a>
+            <a href="/leads">Leads</a>
+          </nav>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }
