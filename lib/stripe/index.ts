@@ -41,6 +41,55 @@ export const PLATFORM_FEE_PERCENT = CONNECT_ACCOUNT_ID
 export const stripeAccountOptions = (): Stripe.RequestOptions | undefined =>
   CONNECT_ACCOUNT_ID ? { stripeAccount: CONNECT_ACCOUNT_ID } : undefined;
 
+export async function getMyHelperMonthlyPriceId() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("STRIPE_SECRET_KEY is not configured.");
+  }
+
+  const lookupKeyMatches = await stripe.prices.list(
+    {
+      active: true,
+      lookup_keys: ["my-helper-pro-monthly"],
+      type: "recurring",
+      limit: 1,
+    },
+    stripeAccountOptions(),
+  );
+
+  if (lookupKeyMatches.data[0]) {
+    return lookupKeyMatches.data[0].id;
+  }
+
+  const products = await stripe.products.search(
+    { query: "active:'true' AND name:'my-helper Pro'", limit: 1 },
+    stripeAccountOptions(),
+  );
+  const product = products.data[0];
+
+  if (!product) {
+    throw new Error(
+      "Stripe product `my-helper Pro` was not found. Create it with a monthly recurring price.",
+    );
+  }
+
+  const prices = await stripe.prices.list(
+    {
+      active: true,
+      product: product.id,
+      type: "recurring",
+      limit: 10,
+    },
+    stripeAccountOptions(),
+  );
+  const monthlyPrice = prices.data.find((price) => price.recurring?.interval === "month");
+
+  if (!monthlyPrice) {
+    throw new Error("Stripe product `my-helper Pro` needs an active monthly recurring price.");
+  }
+
+  return monthlyPrice.id;
+}
+
 // ─── Checkout ─────────────────────────────────────────────────────────────────
 
 export async function createCheckoutSession({
