@@ -6,6 +6,7 @@ create table if not exists service_requests (
   category text not null,
   description text not null,
   location text not null,
+  contact_email text not null default 'requester@example.com',
   budget_cents integer,
   status text not null default 'open'
 );
@@ -76,22 +77,25 @@ create policy "activities_v1_write" on activities for all using (true) with chec
 insert into provider_profiles (id, display_name, category, bio, location, contact_email, hourly_rate_cents, is_paid, is_available) values
   ('a1000000-0000-0000-0000-000000000001', 'Maria Santos', 'Cleaning', 'Professional home and office cleaner with 8 years experience.', 'Austin, TX', 'maria@example.com', 4500, true, true),
   ('a1000000-0000-0000-0000-000000000002', 'James Okafor', 'Plumbing', 'Licensed plumber. Emergency callouts welcome.', 'Austin, TX', 'james@example.com', 8000, false, true),
-  ('a1000000-0000-0000-0000-000000000003', 'Lena Kim', 'Tutoring', 'Math and science tutor, grades 6-12, 5-star rated.', 'Remote', 'lena@example.com', 5500, true, true);
+  ('a1000000-0000-0000-0000-000000000003', 'Lena Kim', 'Tutoring', 'Math and science tutor, grades 6-12, 5-star rated.', 'Remote', 'lena@example.com', 5500, true, true)
+on conflict (id) do nothing;
 
-insert into service_requests (id, title, category, description, location, budget_cents, status) values
-  ('b1000000-0000-0000-0000-000000000001', 'Deep clean 3-bed apartment before move-out', 'Cleaning', 'Need a thorough clean of a 3-bedroom apartment including oven and bathrooms. Available this weekend.', 'Austin, TX', 25000, 'open'),
-  ('b1000000-0000-0000-0000-000000000002', 'Fix leaking kitchen tap urgently', 'Plumbing', 'Kitchen tap dripping constantly. Need someone this week.', 'Austin, TX', 15000, 'open'),
-  ('b1000000-0000-0000-0000-000000000003', 'Weekly math tutoring for 8th grader', 'Tutoring', 'My son needs weekly 1-hour math sessions leading up to finals.', 'Remote', 8000, 'open'),
-  ('b1000000-0000-0000-0000-000000000004', 'Office deep clean every Monday morning', 'Cleaning', 'Small 10-person office, needs weekly clean before staff arrive.', 'Austin, TX', 60000, 'open');
+insert into service_requests (id, title, category, description, location, contact_email, budget_cents, status) values
+  ('b1000000-0000-0000-0000-000000000001', 'Deep clean 3-bed apartment before move-out', 'Cleaning', 'Need a thorough clean of a 3-bedroom apartment including oven and bathrooms. Available this weekend.', 'Austin, TX', 'alex.moveout@example.com', 25000, 'open'),
+  ('b1000000-0000-0000-0000-000000000002', 'Fix leaking kitchen tap urgently', 'Plumbing', 'Kitchen tap dripping constantly. Need someone this week.', 'Austin, TX', 'sam.kitchen@example.com', 15000, 'open'),
+  ('b1000000-0000-0000-0000-000000000003', 'Weekly math tutoring for 8th grader', 'Tutoring', 'My son needs weekly 1-hour math sessions leading up to finals.', 'Remote', 'parent.math@example.com', 8000, 'open'),
+  ('b1000000-0000-0000-0000-000000000004', 'Office deep clean every Monday morning', 'Cleaning', 'Small 10-person office, needs weekly clean before staff arrive.', 'Austin, TX', 'ops.office@example.com', 60000, 'open')
+on conflict (id) do nothing;
 
-insert into leads (provider_profile_id, service_request_id, status, note) values
-  ('a1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'new', 'Available Saturday morning.'),
-  ('a1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000004', 'contacted', 'Sent pricing details.'),
-  ('a1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000002', 'new', 'Can come Wednesday.'),
-  ('a1000000-0000-0000-0000-000000000003', 'b1000000-0000-0000-0000-000000000003', 'won', 'Sessions booked every Thursday.'),
-  ('a1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'new', null);
+insert into leads (id, provider_profile_id, service_request_id, status, note, match_score, match_score_source, match_score_confidence) values
+  ('c1000000-0000-0000-0000-000000000001', 'a1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000001', 'new', 'Available Saturday morning.', 100, 'rule-based-v1', 1.0),
+  ('c1000000-0000-0000-0000-000000000002', 'a1000000-0000-0000-0000-000000000001', 'b1000000-0000-0000-0000-000000000004', 'contacted', 'Sent pricing details.', 100, 'rule-based-v1', 1.0),
+  ('c1000000-0000-0000-0000-000000000003', 'a1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000002', 'new', 'Can come Wednesday.', 100, 'rule-based-v1', 1.0),
+  ('c1000000-0000-0000-0000-000000000004', 'a1000000-0000-0000-0000-000000000003', 'b1000000-0000-0000-0000-000000000003', 'won', 'Sessions booked every Thursday.', 100, 'rule-based-v1', 1.0),
+  ('c1000000-0000-0000-0000-000000000005', 'a1000000-0000-0000-0000-000000000002', 'b1000000-0000-0000-0000-000000000001', 'new', null, 30, 'rule-based-v1', 1.0)
+on conflict (id) do nothing;
 
 insert into activities (entity_type, entity_id, action, actor, meta) values
-  ('lead', 'b1000000-0000-0000-0000-000000000001', 'lead_created', 'Maria Santos', '{"request_title":"Deep clean 3-bed apartment before move-out"}'),
-  ('lead', 'b1000000-0000-0000-0000-000000000003', 'status_changed', 'Lena Kim', '{"from":"contacted","to":"won"}'),
+  ('lead', 'c1000000-0000-0000-0000-000000000001', 'lead_created', 'Maria Santos', '{"request_title":"Deep clean 3-bed apartment before move-out"}'),
+  ('lead', 'c1000000-0000-0000-0000-000000000004', 'status_changed', 'Lena Kim', '{"from":"contacted","to":"won"}'),
   ('provider_profile', 'a1000000-0000-0000-0000-000000000001', 'payment_completed', 'Maria Santos', '{"plan":"monthly","amount_cents":2900}');
