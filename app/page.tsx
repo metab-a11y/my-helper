@@ -1,3 +1,4 @@
+import { SetupIssue } from "@/components/SetupIssue";
 import { formatMoney } from "@/lib/my-helper/format";
 import { hasSupabaseEnv } from "@/lib/my-helper/env";
 import { listOpenRequests, listProviders } from "@/lib/my-helper/data";
@@ -16,7 +17,18 @@ export default async function Home() {
     );
   }
 
-  const [requests, providers] = await Promise.all([listOpenRequests(), listProviders()]);
+  let requests = [];
+  let providers = [];
+
+  try {
+    [requests, providers] = await Promise.all([listOpenRequests(), listProviders()]);
+  } catch (error) {
+    return (
+      <SetupIssue
+        message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
+      />
+    );
+  }
 
   return (
     <main className="page-shell">

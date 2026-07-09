@@ -1,3 +1,4 @@
+import { SetupIssue } from "@/components/SetupIssue";
 import { listOpenRequests } from "@/lib/my-helper/data";
 import { hasSupabaseEnv } from "@/lib/my-helper/env";
 import { formatMoney } from "@/lib/my-helper/format";
@@ -5,7 +6,17 @@ import { formatMoney } from "@/lib/my-helper/format";
 export const dynamic = "force-dynamic";
 
 export default async function RequestsPage() {
-  const requests = hasSupabaseEnv() ? await listOpenRequests() : [];
+  let requests = [];
+
+  try {
+    requests = hasSupabaseEnv() ? await listOpenRequests() : [];
+  } catch (error) {
+    return (
+      <SetupIssue
+        message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
+      />
+    );
+  }
 
   return (
     <main className="page-shell">

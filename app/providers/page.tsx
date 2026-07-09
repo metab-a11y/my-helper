@@ -1,3 +1,4 @@
+import { SetupIssue } from "@/components/SetupIssue";
 import { listProviders } from "@/lib/my-helper/data";
 import { hasSupabaseEnv } from "@/lib/my-helper/env";
 import { formatMoney } from "@/lib/my-helper/format";
@@ -5,7 +6,17 @@ import { formatMoney } from "@/lib/my-helper/format";
 export const dynamic = "force-dynamic";
 
 export default async function ProvidersPage() {
-  const providers = hasSupabaseEnv() ? await listProviders() : [];
+  let providers = [];
+
+  try {
+    providers = hasSupabaseEnv() ? await listProviders() : [];
+  } catch (error) {
+    return (
+      <SetupIssue
+        message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
+      />
+    );
+  }
 
   return (
     <main className="page-shell">

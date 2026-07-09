@@ -1,3 +1,4 @@
+import { SetupIssue } from "@/components/SetupIssue";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
 import { UnlockButton } from "@/components/UnlockButton";
 import { confirmCheckoutSession } from "@/lib/my-helper/checkout";
@@ -18,7 +19,18 @@ export default async function LeadsPage({
   const sessionId = typeof query.session_id === "string" ? query.session_id : "";
 
   if (!providerId) {
-    const providers = await listProviders();
+    let providers = [];
+
+    try {
+      providers = await listProviders();
+    } catch (error) {
+      return (
+        <SetupIssue
+          message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
+        />
+      );
+    }
+
     return (
       <main className="page-shell">
         <div className="page-heading">
@@ -53,10 +65,21 @@ export default async function LeadsPage({
     }
   }
 
-  const [provider, leads] = await Promise.all([
-    getProvider(providerId),
-    listLeadsForProvider(providerId),
-  ]);
+  let provider;
+  let leads = [];
+
+  try {
+    [provider, leads] = await Promise.all([
+      getProvider(providerId),
+      listLeadsForProvider(providerId),
+    ]);
+  } catch (error) {
+    return (
+      <SetupIssue
+        message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
+      />
+    );
+  }
   const showUnlock = !provider.is_paid && (leads.length > 0 || query.unlock === "1");
 
   return (
