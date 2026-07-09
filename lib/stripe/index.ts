@@ -46,6 +46,11 @@ export async function getMyHelperMonthlyPriceId() {
     throw new Error("STRIPE_SECRET_KEY is not configured.");
   }
 
+  const configuredPriceId = process.env.STRIPE_PRICE_ID?.trim();
+  if (configuredPriceId) {
+    return configuredPriceId;
+  }
+
   const lookupKeyMatches = await stripe.prices.list(
     {
       active: true,
@@ -68,7 +73,7 @@ export async function getMyHelperMonthlyPriceId() {
 
   if (!product) {
     throw new Error(
-      "Stripe product `my-helper Pro` was not found. Create it with a monthly recurring price.",
+      "Stripe product `my-helper Pro` was not found. Add STRIPE_PRICE_ID in Vercel or create it with a monthly recurring price.",
     );
   }
 
