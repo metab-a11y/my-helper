@@ -20,6 +20,10 @@ export type ProviderProfile = {
   contact_email: string;
   hourly_rate_cents: number | null;
   is_paid: boolean;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  stripe_subscription_status: string | null;
+  stripe_current_period_end: string | null;
   is_available: boolean;
 };
 

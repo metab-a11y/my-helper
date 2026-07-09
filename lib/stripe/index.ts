@@ -162,9 +162,13 @@ export async function createPortalSession({
 // ─── Webhook ──────────────────────────────────────────────────────────────────
 
 export function constructWebhookEvent(payload: string, signature: string) {
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error("STRIPE_WEBHOOK_SECRET is not configured.");
+  }
+
   return stripe.webhooks.constructEvent(
     payload,
     signature,
-    process.env.STRIPE_WEBHOOK_SECRET!,
+    process.env.STRIPE_WEBHOOK_SECRET,
   );
 }

@@ -219,18 +219,38 @@ export async function updateLeadStatus({
 
 export async function setProviderPaid({
   providerProfileId,
+  stripeCustomerId,
   stripeSessionId,
+  stripeSubscriptionId,
+  stripeSubscriptionStatus,
+  stripeCurrentPeriodEnd,
   actor = "Stripe",
 }: {
   providerProfileId: string;
+  stripeCustomerId?: string | null;
   stripeSessionId?: string;
+  stripeSubscriptionId?: string | null;
+  stripeSubscriptionStatus?: string | null;
+  stripeCurrentPeriodEnd?: string | null;
   actor?: string;
 }) {
   const supabase = createServerWriteClient();
+  const updatePayload: Record<string, string | boolean | null> = { is_paid: true };
+
+  if (stripeCustomerId !== undefined) updatePayload.stripe_customer_id = stripeCustomerId;
+  if (stripeSubscriptionId !== undefined) {
+    updatePayload.stripe_subscription_id = stripeSubscriptionId;
+  }
+  if (stripeSubscriptionStatus !== undefined) {
+    updatePayload.stripe_subscription_status = stripeSubscriptionStatus;
+  }
+  if (stripeCurrentPeriodEnd !== undefined) {
+    updatePayload.stripe_current_period_end = stripeCurrentPeriodEnd;
+  }
 
   const { data: provider, error } = await supabase
     .from("provider_profiles")
-    .update({ is_paid: true })
+    .update(updatePayload)
     .eq("id", providerProfileId)
     .select("*")
     .single();
@@ -242,8 +262,53 @@ export async function setProviderPaid({
     entity_id: providerProfileId,
     action: "payment_completed",
     actor,
-    meta: { stripe_session_id: stripeSessionId, plan: "monthly" },
+    meta: {
+      stripe_customer_id: stripeCustomerId,
+      stripe_session_id: stripeSessionId,
+      stripe_subscription_id: stripeSubscriptionId,
+      stripe_subscription_status: stripeSubscriptionStatus,
+      plan: "monthly",
+    },
   });
 
   return provider as ProviderProfile;
+}
+
+export async function recordProviderSubscriptionStatus({
+  stripeSubscriptionId,
+  stripeSubscriptionStatus,
+  stripeCurrentPeriodEnd,
+}: {
+  stripeSubscriptionId: string;
+  stripeSubscriptionStatus: string;
+  stripeCurrentPeriodEnd?: string | null;
+}) {
+  const supabase = createServerWriteClient();
+
+  const { data: provider, error } = await supabase
+    .from("provider_profiles")
+    .update({
+      stripe_subscription_status: stripeSubscriptionStatus,
+      stripe_current_period_end: stripeCurrentPeriodEnd,
+    })
+    .eq("stripe_subscription_id", stripeSubscriptionId)
+    .select("*")
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  if (provider) {
+    await supabase.from("activities").insert({
+      entity_type: "provider_profile",
+      entity_id: provider.id,
+      action: "subscription_status_changed",
+      actor: "Stripe webhook",
+      meta: {
+        stripe_subscription_id: stripeSubscriptionId,
+        stripe_subscription_status: stripeSubscriptionStatus,
+      },
+    });
+  }
+
+  return provider as ProviderProfile | null;
 }

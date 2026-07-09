@@ -1,5 +1,8 @@
 import { constructWebhookEvent } from "@/lib/stripe";
-import { setProviderPaid } from "@/lib/my-helper/tools";
+import {
+  recordProviderSubscriptionStatus,
+  setProviderPaid,
+} from "@/lib/my-helper/tools";
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
@@ -41,7 +44,13 @@ export async function POST(request: Request) {
         if (providerProfileId && session.payment_status === "paid") {
           await setProviderPaid({
             providerProfileId,
+            stripeCustomerId:
+              typeof session.customer === "string" ? session.customer : session.customer?.id,
             stripeSessionId: session.id,
+            stripeSubscriptionId:
+              typeof session.subscription === "string"
+                ? session.subscription
+                : session.subscription?.id,
             actor: "Stripe webhook",
           });
         }
@@ -56,7 +65,10 @@ export async function POST(request: Request) {
         if (providerProfileId && ["active", "trialing"].includes(sub.status)) {
           await setProviderPaid({
             providerProfileId,
-            stripeSessionId: sub.latest_invoice?.toString(),
+            stripeCustomerId: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+            stripeSubscriptionId: sub.id,
+            stripeSubscriptionStatus: sub.status,
+            stripeCurrentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
             actor: "Stripe subscription",
           });
         }
@@ -65,7 +77,14 @@ export async function POST(request: Request) {
 
       // ── Subscription cancelled ────────────────────────────────────────────
       case "customer.subscription.deleted": {
-        // Subscription cancellation does not hide existing paid leads in v1.
+        const sub = event.data.object as Stripe.Subscription;
+        await recordProviderSubscriptionStatus({
+          stripeSubscriptionId: sub.id,
+          stripeSubscriptionStatus: sub.status,
+          stripeCurrentPeriodEnd: sub.current_period_end
+            ? new Date(sub.current_period_end * 1000).toISOString()
+            : null,
+        });
         break;
       }
 

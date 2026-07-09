@@ -28,6 +28,10 @@ create table if not exists provider_profiles (
   contact_email text not null,
   hourly_rate_cents integer,
   is_paid boolean not null default false,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  stripe_subscription_status text,
+  stripe_current_period_end timestamptz,
   is_available boolean not null default true
 );
 

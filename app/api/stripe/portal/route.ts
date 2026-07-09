@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getProvider } from "@/lib/my-helper/data";
 import { createPortalSession } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
@@ -10,22 +10,16 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const body = await request.json();
+    const providerProfileId = String(body.providerProfileId || "");
 
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!providerProfileId) {
+      return NextResponse.json({ error: "providerProfileId is required" }, { status: 400 });
     }
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("stripe_customer_id")
-      .eq("id", user.id)
-      .single();
+    const provider = await getProvider(providerProfileId);
 
-    if (!profile?.stripe_customer_id) {
+    if (!provider.stripe_customer_id) {
       return NextResponse.json(
         { error: "No billing account found. Subscribe first." },
         { status: 404 },
@@ -35,8 +29,8 @@ export async function POST(request: Request) {
     const origin = request.headers.get("origin") ?? process.env.NEXT_PUBLIC_APP_URL ?? "";
 
     const portalSession = await createPortalSession({
-      customerId: profile.stripe_customer_id,
-      returnUrl: `${origin}/dashboard`,
+      customerId: provider.stripe_customer_id,
+      returnUrl: `${origin}/leads?provider=${provider.id}`,
     });
 
     return NextResponse.json({ url: portalSession.url });

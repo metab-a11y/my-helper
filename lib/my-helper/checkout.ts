@@ -10,7 +10,13 @@ export async function confirmCheckoutSession(sessionId: string, providerProfileI
   ) {
     await setProviderPaid({
       providerProfileId,
+      stripeCustomerId:
+        typeof session.customer === "string" ? session.customer : session.customer?.id,
       stripeSessionId: session.id,
+      stripeSubscriptionId:
+        typeof session.subscription === "string"
+          ? session.subscription
+          : session.subscription?.id,
       actor: "Stripe return",
     });
   }

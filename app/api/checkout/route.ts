@@ -18,6 +18,7 @@ export async function POST(request: Request) {
     const session = await createCheckoutSession({
       priceId,
       providerProfileId,
+      customerId: provider.stripe_customer_id || undefined,
       customerEmail: provider.contact_email,
       successUrl: `${origin}/leads?provider=${providerProfileId}&checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${origin}/leads?provider=${providerProfileId}&checkout=canceled`,
