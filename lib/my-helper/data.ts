@@ -36,6 +36,18 @@ export async function listProviders() {
   return (data || []) as ProviderProfile[];
 }
 
+export async function listProvidersForUser(userId: string) {
+  const supabase = createPublicDatabaseClient();
+  const { data, error } = await supabase
+    .from("provider_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as ProviderProfile[];
+}
+
 export async function getProvider(id: string) {
   const supabase = createPublicDatabaseClient();
   const { data, error } = await supabase

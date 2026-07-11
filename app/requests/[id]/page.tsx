@@ -1,5 +1,6 @@
 import { InterestPanel } from "@/components/InterestPanel";
-import { getRequest, listProviders } from "@/lib/my-helper/data";
+import { getCurrentUser } from "@/lib/auth/server";
+import { getRequest, listProvidersForUser } from "@/lib/my-helper/data";
 import { formatMoney, maskEmail } from "@/lib/my-helper/format";
 import { notFound } from "next/navigation";
 
@@ -11,11 +12,15 @@ export default async function RequestDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const user = await getCurrentUser();
   let request;
   let providers = [];
 
   try {
-    [request, providers] = await Promise.all([getRequest(id), listProviders()]);
+    [request, providers] = await Promise.all([
+      getRequest(id),
+      user ? listProvidersForUser(user.id) : Promise.resolve([]),
+    ]);
   } catch {
     notFound();
   }
@@ -47,7 +52,7 @@ export default async function RequestDetailPage({
             </div>
           </div>
         </article>
-        <InterestPanel requestId={request.id} providers={providers} />
+        <InterestPanel requestId={request.id} providers={providers} isSignedIn={Boolean(user)} />
       </section>
     </main>
   );

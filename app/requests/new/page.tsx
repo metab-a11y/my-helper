@@ -1,6 +1,9 @@
 import { RequestForm } from "@/components/RequestForm";
+import { requireCurrentUser } from "@/lib/auth/server";
 
-export default function NewRequestPage() {
+export default async function NewRequestPage() {
+  await requireCurrentUser("/requests/new");
+
   return (
     <main className="page-shell narrow">
       <div className="page-heading">

@@ -7,9 +7,11 @@ import { useRouter } from "next/navigation";
 export function InterestPanel({
   requestId,
   providers,
+  isSignedIn,
 }: {
   requestId: string;
   providers: ProviderProfile[];
+  isSignedIn: boolean;
 }) {
   const router = useRouter();
   const [providerId, setProviderId] = useState(providers[0]?.id || "");
@@ -60,7 +62,12 @@ export function InterestPanel({
         <p className="eyebrow">Provider action</p>
         <h2>Express interest</h2>
       </div>
-      {providers.length ? (
+      {!isSignedIn ? (
+        <>
+          <p className="muted">Log in to use your provider profile and create a lead.</p>
+          <a className="primary-button" href={`/login?redirectTo=/requests/${requestId}`}>Log in to continue</a>
+        </>
+      ) : providers.length ? (
         <>
           <label>
             Acting as

@@ -1,8 +1,9 @@
 import { SetupIssue } from "@/components/SetupIssue";
 import { LeadStatusSelect } from "@/components/LeadStatusSelect";
 import { UnlockButton } from "@/components/UnlockButton";
+import { requireCurrentUser } from "@/lib/auth/server";
 import { confirmCheckoutSession } from "@/lib/my-helper/checkout";
-import { getProvider, listLeadsForProvider, listProviders } from "@/lib/my-helper/data";
+import { getProvider, listLeadsForProvider, listProvidersForUser } from "@/lib/my-helper/data";
 import { formatMoney, maskEmail } from "@/lib/my-helper/format";
 import type { LeadStatus } from "@/lib/my-helper/types";
 
@@ -13,6 +14,7 @@ export default async function LeadsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const user = await requireCurrentUser("/leads");
   const query = await searchParams;
   const providerId = typeof query.provider === "string" ? query.provider : "";
   const checkout = typeof query.checkout === "string" ? query.checkout : "";
@@ -22,7 +24,7 @@ export default async function LeadsPage({
     let providers = [];
 
     try {
-      providers = await listProviders();
+      providers = await listProvidersForUser(user.id);
     } catch (error) {
       return (
         <SetupIssue
@@ -79,6 +81,9 @@ export default async function LeadsPage({
         message={error instanceof Error ? error.message : "Supabase returned an unknown error."}
       />
     );
+  }
+  if (provider.user_id !== user.id) {
+    return <SetupIssue message="This provider profile is not linked to your account." />;
   }
   const showUnlock = !provider.is_paid && (leads.length > 0 || query.unlock === "1");
 

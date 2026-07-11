@@ -1,7 +1,10 @@
 import { createServerWriteClient } from "./supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { LeadStatus, ProviderProfile, ServiceRequest } from "./types";
 
 type CreateRequestInput = {
+  userId: string;
+  client?: SupabaseClient;
   title: string;
   category: string;
   description: string;
@@ -11,6 +14,8 @@ type CreateRequestInput = {
 };
 
 type CreateProviderInput = {
+  userId: string;
+  client?: SupabaseClient;
   displayName: string;
   category: string;
   bio: string;
@@ -48,8 +53,9 @@ export function computeMatchScore(request: ServiceRequest, provider: ProviderPro
 }
 
 export async function createServiceRequest(input: CreateRequestInput) {
-  const supabase = createServerWriteClient();
+  const supabase = input.client || createServerWriteClient();
   const payload = {
+    user_id: input.userId,
     title: requireText(input.title, "Title"),
     category: requireText(input.category, "Category"),
     description: requireText(input.description, "Description"),
@@ -68,6 +74,7 @@ export async function createServiceRequest(input: CreateRequestInput) {
   if (error) throw new Error(error.message);
 
   await supabase.from("activities").insert({
+    user_id: input.userId,
     entity_type: "service_request",
     entity_id: data.id,
     action: "request_posted",
@@ -79,8 +86,9 @@ export async function createServiceRequest(input: CreateRequestInput) {
 }
 
 export async function createProviderProfile(input: CreateProviderInput) {
-  const supabase = createServerWriteClient();
+  const supabase = input.client || createServerWriteClient();
   const payload = {
+    user_id: input.userId,
     display_name: requireText(input.displayName, "Display name"),
     category: requireText(input.category, "Category"),
     bio: requireText(input.bio, "Bio"),
@@ -99,6 +107,7 @@ export async function createProviderProfile(input: CreateProviderInput) {
   if (error) throw new Error(error.message);
 
   await supabase.from("activities").insert({
+    user_id: input.userId,
     entity_type: "provider_profile",
     entity_id: data.id,
     action: "provider_created",
@@ -110,15 +119,19 @@ export async function createProviderProfile(input: CreateProviderInput) {
 }
 
 export async function insertLead({
+  userId,
+  client,
   providerProfileId,
   serviceRequestId,
   note,
 }: {
+  userId: string;
+  client?: SupabaseClient;
   providerProfileId: string;
   serviceRequestId: string;
   note?: string;
 }) {
-  const supabase = createServerWriteClient();
+  const supabase = client || createServerWriteClient();
 
   const { data: provider, error: providerError } = await supabase
     .from("provider_profiles")
@@ -126,6 +139,9 @@ export async function insertLead({
     .eq("id", providerProfileId)
     .single();
   if (providerError || !provider) throw new Error(providerError?.message || "Provider not found.");
+  if (provider.user_id !== userId) {
+    throw new Error("You can only create leads from your own provider profile.");
+  }
 
   const { data: request, error: requestError } = await supabase
     .from("service_requests")
@@ -151,6 +167,7 @@ export async function insertLead({
   const { data: lead, error: leadError } = await supabase
     .from("leads")
     .insert({
+      user_id: userId,
       provider_profile_id: providerProfileId,
       service_request_id: serviceRequestId,
       status: "new",
@@ -166,6 +183,7 @@ export async function insertLead({
   if (leadError) throw new Error(leadError.message);
 
   await supabase.from("activities").insert({
+    user_id: userId,
     entity_type: "lead",
     entity_id: lead.id,
     action: "lead_created",
@@ -182,9 +200,13 @@ export async function insertLead({
 }
 
 export async function updateLeadStatus({
+  userId,
+  client,
   leadId,
   status,
 }: {
+  userId: string;
+  client?: SupabaseClient;
   leadId: string;
   status: LeadStatus;
 }) {
@@ -192,14 +214,17 @@ export async function updateLeadStatus({
     throw new Error("Unsupported lead status.");
   }
 
-  const supabase = createServerWriteClient();
+  const supabase = client || createServerWriteClient();
   const { data: before, error: beforeError } = await supabase
     .from("leads")
-    .select("*, provider_profiles(display_name)")
+    .select("*, provider_profiles(display_name, user_id)")
     .eq("id", leadId)
     .single();
 
   if (beforeError || !before) throw new Error(beforeError?.message || "Lead not found.");
+  if (before.user_id !== userId && before.provider_profiles?.user_id !== userId) {
+    throw new Error("You can only update your own leads.");
+  }
 
   const { data: lead, error } = await supabase
     .from("leads")
@@ -211,6 +236,7 @@ export async function updateLeadStatus({
   if (error) throw new Error(error.message);
 
   await supabase.from("activities").insert({
+    user_id: userId,
     entity_type: "lead",
     entity_id: leadId,
     action: "status_changed",

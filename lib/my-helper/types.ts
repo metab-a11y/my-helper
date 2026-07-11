@@ -1,5 +1,6 @@
 export type ServiceRequest = {
   id: string;
+  user_id: string | null;
   created_at: string;
   title: string;
   category: string;
@@ -12,6 +13,7 @@ export type ServiceRequest = {
 
 export type ProviderProfile = {
   id: string;
+  user_id: string | null;
   created_at: string;
   display_name: string;
   category: string;
@@ -31,6 +33,7 @@ export type LeadStatus = "new" | "contacted" | "won" | "lost";
 
 export type Lead = {
   id: string;
+  user_id: string | null;
   created_at: string;
   provider_profile_id: string;
   service_request_id: string;

@@ -1,4 +1,5 @@
 import { getProvider } from "@/lib/my-helper/data";
+import { getCurrentUser } from "@/lib/auth/server";
 import { createPortalSession } from "@/lib/stripe";
 import { NextResponse } from "next/server";
 
@@ -10,6 +11,11 @@ import { NextResponse } from "next/server";
  */
 export async function POST(request: Request) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Log in to manage billing." }, { status: 401 });
+    }
+
     const body = await request.json();
     const providerProfileId = String(body.providerProfileId || "");
 
@@ -18,6 +24,9 @@ export async function POST(request: Request) {
     }
 
     const provider = await getProvider(providerProfileId);
+    if (provider.user_id !== user.id) {
+      return NextResponse.json({ error: "You can only manage billing for your own provider profile." }, { status: 403 });
+    }
 
     if (!provider.stripe_customer_id) {
       return NextResponse.json(
