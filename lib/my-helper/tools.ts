@@ -135,14 +135,18 @@ export async function insertLead({
   if (requestError || !request) throw new Error(requestError?.message || "Request not found.");
 
   const score = computeMatchScore(request as ServiceRequest, provider as ProviderProfile);
-  const { data: existing } = await supabase
+  const { data: existingLeads, error: existingError } = await supabase
     .from("leads")
     .select("*")
     .eq("provider_profile_id", providerProfileId)
     .eq("service_request_id", serviceRequestId)
-    .maybeSingle();
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (existing) return { lead: existing, provider: provider as ProviderProfile, wasCreated: false };
+  if (existingError) throw new Error(existingError.message);
+  if (existingLeads?.[0]) {
+    return { lead: existingLeads[0], provider: provider as ProviderProfile, wasCreated: false };
+  }
 
   const { data: lead, error: leadError } = await supabase
     .from("leads")
