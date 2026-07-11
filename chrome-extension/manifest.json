@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "my-helper Quick Open",
+  "description": "Open my-helper requests, providers, leads, and login from Chrome.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "my-helper",
+    "default_popup": "popup.html"
+  },
+  "permissions": [],
+  "host_permissions": [
+    "https://my-helper.app/*"
+  ]
+}
